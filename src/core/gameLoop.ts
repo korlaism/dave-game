@@ -1,6 +1,8 @@
 import { JumpingEnemy, PatrollingEnemy } from "../entities/advancedEnemy";
 import { Collectible } from "../entities/collectible";
 import { Enemy } from "../entities/enemy";
+import { Hazard } from "../entities/hazard";
+import { ParallaxBackground } from "../entities/parallaxBackground";
 import { Platform } from "../entities/platform";
 import { Player } from "../entities/player";
 import { InputHandler } from "./inputHandler";
@@ -11,12 +13,15 @@ export class GameLoop {
     platforms: Platform[] = [];
     enemies: Enemy[] = [];
     collectibles: Collectible[] = [];
+    hazards: Hazard[] = [];
+    parallaxBackground: ParallaxBackground;
     ctx: CanvasRenderingContext2D;
     canvas: HTMLCanvasElement;
     currentLevel: number;
     score: number;
     gameOver: boolean;
     gameCompleted: boolean;
+    offset: number;
 
     constructor(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, ) {
         this.ctx = ctx;
@@ -27,7 +32,15 @@ export class GameLoop {
         this.score = 0;
         this.gameOver = false;
         this.gameCompleted = false;
+        this.offset = 200;
         this.loadLevel(this.currentLevel);
+
+        // Initialize parallax background
+        this.parallaxBackground = new ParallaxBackground(
+          ["/assets/backgrounds/cloud.png"],
+          [0.2], // Speed for each layer (the first layer moves slower than the others)
+          [0] // Y offset for each layer
+        );
     }
 
     loadLevel(level: number) {
@@ -61,6 +74,9 @@ export class GameLoop {
             new Collectible(350, 220, 20, 20),
             new Collectible(650, 120, 20, 20),
           ];
+          this.hazards = [
+            new Hazard(600, 480, 50, 20), // A spike on the ground level
+          ];
         }
     }
       
@@ -74,6 +90,7 @@ export class GameLoop {
         this.player.x = 50;
         this.player.y = this.canvas.height - 100;
         this.player.velocityY = 0; // Reset vertical velocity for a clean restart
+        this.offset = 0;
         this.loadLevel(this.currentLevel);
     }
     
@@ -196,6 +213,11 @@ export class GameLoop {
         const keys = this.inputHandler.getKeyState();
         this.player.update(keys);
 
+        // Update player offset for background scrolling
+        if (keys["ArrowLeft"] || keys["ArrowRight"]) {
+          this.offset += keys["ArrowLeft"] ? -this.player.speed : this.player.speed;
+        }
+
         // Update enemies
         this.enemies.forEach((enemy: Enemy) => {
             enemy.update(this.canvas.width);
@@ -219,6 +241,13 @@ export class GameLoop {
         // Update collectibles
         this.collectibles.forEach((collectible) => collectible.update());
 
+        // Check for collisions between the player and each hazard
+        this.hazards.forEach((hazard) => {
+          if (hazard.checkCollision(this.player)) {
+            this.player.takeDamage();
+          }
+        });
+
         // Update level progression
         this.checkLevelProgress();
 
@@ -241,10 +270,18 @@ export class GameLoop {
             return;
         }
 
+        // Draw the parallax background
+        this.parallaxBackground.draw(this.ctx, this.offset);
+
         // Draw platforms
         this.platforms.forEach((platform: Platform) => {
             platform.draw(this.ctx);
         })
+
+        // Draw hazards
+        this.hazards.forEach((hazard) => {
+          hazard.draw(this.ctx);
+        });
 
         // Draw enemies
         this.enemies.forEach((enemy: Enemy) => {
@@ -266,9 +303,9 @@ export class GameLoop {
     drawUI() {
         this.ctx.fillStyle = "white";
         this.ctx.font = "20px Arial";
-        this.ctx.fillText(`Score: ${this.score}`, 20, 30);
-        this.ctx.fillText(`Level: ${this.currentLevel}`, 20, 60);
-        this.ctx.fillText(`Health: ${this.player.health}`, 20, 90);
+        this.ctx.fillText(`Score: ${this.score}`, this.canvas.width - 100, 30);
+        this.ctx.fillText(`Level: ${this.currentLevel}`, this.canvas.width - 100, 60);
+        this.ctx.fillText(`Health: ${this.player.health}`, this.canvas.width - 100, 90);
     }
 
     start() {

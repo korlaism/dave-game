@@ -11,6 +11,8 @@ export class Player {
     isJumping: boolean;
     jumpForce: number;
     health: number;
+    sprite: HTMLImageElement;
+    flipImage: boolean;
 
     constructor(x: number, y: number, width: number, height: number, speed: number, canvasWidth: number, canvasHeight: number) {
         this.x = x;
@@ -25,14 +27,19 @@ export class Player {
         this.isJumping = false;
         this.jumpForce = -20;
         this.health = 3;
+        this.sprite = new Image();
+        this.sprite.src = "/assets/hero.png";
+        this.flipImage = false;
     }
 
     update(keys: { [key: string]: boolean }) {
         if (keys["ArrowLeft"]) {
             this.x = Math.max(0, this.x - this.speed);
+            this.flipImage = true;
         }
         if (keys["ArrowRight"]) {
             this.x = Math.min(this.canvasWidth - this.width, this.x + this.speed);
+            this.flipImage = false;
         }
         if (keys["ArrowUp"] && !this.isJumping) {
             this.velocityY = this.jumpForce; // Apply an instantaneous upwards force
@@ -63,7 +70,19 @@ export class Player {
     }
 
     draw(ctx: CanvasRenderingContext2D) {
-        ctx.fillStyle = "red";
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Save the current state of the canvas
+        ctx.save();
+
+        if (this.flipImage) {
+            ctx.translate(this.x + this.width, this.y);
+            ctx.scale(-1, 1);
+            ctx.drawImage(this.sprite, 0, 0, this.width, this.height);
+        } else {
+            ctx.translate(this.x, this.y);
+            ctx.drawImage(this.sprite, 0, 0, this.width, this.height);
+        }
+
+        // Restore the state of the canvas
+        ctx.restore();
     }
 }
